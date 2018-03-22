@@ -28,7 +28,7 @@ source-repository head
 library
   default-extensions:  DataKinds FlexibleContexts ScopedTypeVariables OverloadedStrings ViewPatterns NamedFieldPuns
                        KindSignatures RecordWildCards ConstraintKinds TypeSynonymInstances FlexibleInstances
-                       DuplicateRecordFields DeriveAnyClass
+                       DuplicateRecordFields GeneralizedNewtypeDeriving InstanceSigs TypeFamilies
   hs-source-dirs:
       src
   build-depends:
@@ -39,26 +39,43 @@ library
                 , time
                 , wai
                 , bytestring
+                , bytestring-lexing
                 , hashable
                 , mtl
                 , random
                 , text
                 , async
-                , unliftio
+                , monad-control
+                , lifted-base
+                , http-api-data
   exposed-modules:
-      Servant.Tracing
-  other-modules:
-      Tracing.Core
+                Tracing.Core
+              , Servant.Tracing
+  -- other-modules:
   default-language: Haskell2010
 
-executable servant-tracing-exe
+executable servant-tracing-example
   main-is: Main.hs
   hs-source-dirs:
       app
+  default-extensions:  DataKinds FlexibleContexts ScopedTypeVariables OverloadedStrings ViewPatterns NamedFieldPuns
+                       KindSignatures RecordWildCards ConstraintKinds TypeSynonymInstances FlexibleInstances
+                       DuplicateRecordFields GeneralizedNewtypeDeriving InstanceSigs TypeFamilies TypeOperators
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
     , servant-tracing
+    , servant
+    , servant-server
+    , mtl
+    , text
+    , transformers
+    , containers
+    , wai
+    , monad-control
+    , lifted-base
+    , warp
+    , async
   other-modules:
       Paths_servant_tracing
   default-language: Haskell2010
@@ -72,6 +89,15 @@ test-suite servant-tracing-test
   build-depends:
       base >=4.7 && <5
     , servant-tracing
+    , http-api-data
+    , transformers
+    , text
+    , mtl
+    , QuickCheck
+    , HUnit
+    , tasty
+    , tasty-quickcheck
+    , tasty-hunit
   other-modules:
-      Paths_servant_tracing
+      Servant.TracingSpec
   default-language: Haskell2010

@@ -1,2 +1,9 @@
+
+import Servant.TracingSpec (tracingProps, tracingSpecs)
+import Test.Tasty
+
 main :: IO ()
-main = putStrLn "Test suite not yet implemented"
+main = defaultMain $ testGroup "Tracing"  [
+    tracingProps,
+    tracingSpecs
+    ]
