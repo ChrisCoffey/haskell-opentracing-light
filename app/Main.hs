@@ -1,37 +1,57 @@
 {-# LANGUAGE UndecidableInstances #-}
 module Main where
 
-import Servant.Tracing (TracingInstructions(..), getInstructions, WithTracing)
-import Tracing.Core (recordSpan, SpanRelationTag(..), Tracer(..), MonadTracer(..), SpanId(..),
-    TraceId(..))
+import Servant.Tracing ( getInstructions, WithTracing)
+import Tracing.Core (recordSpan,TracingInstructions(..), SpanRelationTag(..), Tracer(..), MonadTracer(..), SpanId(..),
+    TraceId(..), debugPrintSpan)
+import Tracing.Jaeger (publishJaeger)
 
 import Control.Concurrent (threadDelay, forkIO)
-import Control.Monad (forever)
+import Control.Monad (forever, mapM_)
 import Control.Monad.Trans (MonadIO, liftIO)
 import Control.Monad.Trans.Control (MonadBaseControl)
 import Control.Monad.Reader (ReaderT(..), ask, MonadReader)
 import Data.IORef (IORef, newIORef, atomicModifyIORef')
 import Data.Maybe (maybe)
 import Data.Proxy (Proxy(..))
+import Data.Foldable (toList)
+import Data.ByteString.Char8 as BS
 import qualified Data.Sequence as Seq
 import Servant
 import Servant.Server
-import System.Environment (lookupEnv)
+import System.Environment (lookupEnv, getEnv)
 import qualified Data.Text as T
 import Network.Wai.Handler.Warp (run)
+import Network.HTTP.Client (Manager, newManager, defaultManagerSettings, responseStatus, responseBody)
 
 
 main :: IO ()
 main = do
     debug <- maybe False (== "TRUE") <$> lookupEnv "TRACE_DEBUG"
-    tracer <- Tracer <$> newIORef Seq.empty
-    forkIO $ dumpToConsole tracer
+    destinationPath <- getEnv "TRACING_ENDPOINT"
+    svcName <- T.pack <$> getEnv "TRACING_SERVICE"
+    httpManager <- newManager defaultManagerSettings
+    cell <- newIORef Seq.empty
+    let tracer = Tracer cell svcName
+    forkIO $ publishLoop destinationPath httpManager tracer
     run 8080 . serve (Proxy :: Proxy ExampleAPI) $ server tracer
-    where
-        dumpToConsole Tracer {spanBuffer} = forever $ do
-            threadDelay 15000000
-            buffer <- atomicModifyIORef' spanBuffer (\b -> (Seq.empty, b))
-            print $ ("Buffer Size: " ++ show (Seq.length buffer))
+
+
+publishLoop ::
+    String
+    -> Manager
+    -> Tracer
+    -> IO ()
+publishLoop destination manager (Tracer {spanBuffer}) = forever $ do
+    threadDelay 5000000
+    buffer <- atomicModifyIORef' spanBuffer (\b -> (Seq.empty, b))
+    mResp <- publishJaeger destination manager $ toList buffer
+    case mResp of
+        Nothing -> pure ()
+        Just resp -> do
+            print $ "Ran Loop " ++ (show $ responseStatus resp) ++ " " ++ (show . fmap debugPrintSpan $ toList buffer)
+            print $ "       " ++ (T.unpack $ responseBody resp)
+
 
 
 --
@@ -70,13 +90,15 @@ server tracer inst auth =
         runFast = do
             ctx <- loadCtx
             runStack ctx $
-                recordSpan (Just Child) "Run Fast" . liftIO $
+                recordSpan (const Child <$> inst) "Run Fast" . liftIO $
                     threadDelay 1000000 *> pure 42
         runSlow = do
             ctx <- loadCtx
             runStack ctx $
-                recordSpan (Just Child) "Run Slow" . liftIO $
-                    threadDelay 10000000 *> pure ("Boo" :: T.Text)
+                recordSpan (const Child <$> inst) "Run Slow" $ do
+                    liftIO $ threadDelay 500000
+                    let action = liftIO $ threadDelay 1500000 *> pure "Boo"
+                    recordSpan (Just Child) "Slow Child" action
 
 runStack :: Ctx -> ReaderT Ctx Handler a -> Handler a
 runStack ctx action = runReaderT action ctx
@@ -91,3 +113,4 @@ instance (Monad m, MonadBaseControl IO m, MonadIO m, MonadReader Ctx m) => Monad
     getTracer = tracer <$> ask
     currentTrace = (traceId . instructions) <$> ask
     currentSpan = currSpan <$> ask
+    isDebug = (debug . instructions) <$> ask

@@ -7,7 +7,7 @@ module Servant.Tracing (
     getInstructions
     ) where
 
-import Tracing.Core (TraceId(..), SpanId(..), MonadTracer)
+import Tracing.Core (TraceId(..), SpanId(..), MonadTracer, TracingInstructions(..))
 
 import Control.Monad.Trans (liftIO, MonadIO)
 import qualified Data.Text as T
@@ -26,14 +26,6 @@ import Web.HttpApiData (FromHttpApiData(..))
 type ServantTracingT api m = (MonadIO m, MonadTracer m) => ServerT api m
 type WithTracing = Header "uber-trace-id" TracingInstructions
 
-data TracingInstructions =
-    TracingInstructions {
-        traceId :: !TraceId,
-        spanId :: !SpanId,
-        parentSpanId :: !SpanId,
-        debug :: !Bool,
-        sample :: !Bool
-    } deriving (Eq, Show)
 
 -- | Jaeger format: http://jaeger.readthedocs.io/en/latest/client_libraries/#propagation-format
 instructionsToHeader :: TracingInstructions -> T.Text
