@@ -7,6 +7,7 @@ module Servant.TracingSpec (
 
 import Servant.Tracing (TracingInstructions(..), instructionsToHeader)
 import Tracing.Core (TraceId(..), SpanId(..))
+import Instances ()
 
 import Data.Maybe (fromMaybe, maybe)
 import qualified Data.Text as T
@@ -17,8 +18,6 @@ import Test.Tasty
 import Test.Tasty.HUnit (testCase)
 import Test.Tasty.QuickCheck (testProperty)
 import Web.HttpApiData (parseUrlPiece)
-
-import Debug.Trace (trace)
 
 tracingProps :: TestTree
 tracingProps = testGroup "Servant Properties" [
@@ -63,20 +62,4 @@ instructionProps = testGroup "TracingInstructions" [
     ]
 
 
-instance Arbitrary TracingInstructions where
-    arbitrary = do
-        traceId <- TraceId <$> pa
-        spanId <- SpanId <$> pa
-        parentSpanId <- SpanId <$> pa
-        debug <- arbitrary
-        sample <- arbitrary
-        pure TracingInstructions {
-            traceId,
-            spanId,
-            parentSpanId,
-            debug,
-            sample
-            }
-        where
-            pa = suchThat arbitrary (>= 0)
 

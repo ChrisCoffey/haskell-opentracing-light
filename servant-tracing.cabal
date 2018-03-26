@@ -104,6 +104,11 @@ test-suite servant-tracing-test
     , tasty
     , tasty-quickcheck
     , tasty-hunit
+    , aeson
+    , containers
+    , time
   other-modules:
-      Servant.TracingSpec
+      Servant.TracingSpec,
+      Instances,
+      Jaeger.ClientSpec
   default-language: Haskell2010

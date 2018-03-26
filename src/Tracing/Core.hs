@@ -41,7 +41,7 @@ newtype SpanId = SpanId Int64
 newtype TraceId = TraceId Int64
     deriving (Eq, Ord, Show, FromHttpApiData)
 
--- | Indicates that the current monad can provide a 'Tracer'.
+-- | Indicates that the current monad can provide a 'Tracer' and related context.
 -- It assumes some form of environment
 class Monad m => MonadTracer m where
     getTracer :: m Tracer
@@ -140,7 +140,7 @@ data Span = Span {
     baggage:: !(M.Map Text Text),
     debug :: !Bool,
     serviceName :: !Text
-    }
+    } deriving Show
 
 debugPrintSpan ::
     Span

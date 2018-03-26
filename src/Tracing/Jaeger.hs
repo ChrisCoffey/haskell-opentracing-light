@@ -1,7 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Tracing.Jaeger (
-    publishJaeger
+    publishJaeger,
+    ZipkinSpan(..)
     ) where
 
 import Tracing.Core (Span(..), SpanId(..), OpName(..), TraceId(..), SpanContext(..),
@@ -43,7 +44,7 @@ instance ToJSON ZipkinSpan where
         "traceId" .= unTrace (traceId $ context span),
         "id" .=  unSpan (spanId $ context span),
         "name" .=  unOp (operationName span),
-        "timestamp" .= (floor $ timestamp span :: Int64),
+        "timestamp" .= (floor . toMicros $ timestamp span :: Int64),
         "kind" .= ("CLIENT"::T.Text),
         "duration" .= (toMicros $ duration span),
         "debug" .= (debug span),
@@ -53,8 +54,9 @@ instance ToJSON ZipkinSpan where
         where
             toMicros = (*) 1000000
             unOp (OpName n) = n
-            unTrace (TraceId t) = padLeft 16 . T.pack . BS.unpack . fromMaybe "-1" $ BS.packHexadecimal t
-            unSpan (SpanId s) = padLeft 16 . T.pack . BS.unpack . fromMaybe "-1" $ BS.packHexadecimal s
+            zipkinFormatId = padLeft 16 . T.pack . BS.unpack . fromMaybe "-1"
+            unTrace (TraceId t) = zipkinFormatId $ BS.packHexadecimal t
+            unSpan (SpanId s) = zipkinFormatId $ BS.packHexadecimal s
             parentId :: [SpanRelation] -> [(T.Text, Value)]
             parentId (ChildOf ctx:_) = ["parentId" .= (unSpan $ spanId ctx)]
             parentId (FollowsFrom ctx:_) = ["parentId" .= (unSpan $ spanId ctx)]
