@@ -27,7 +27,6 @@ import Data.Maybe (isJust)
 import Data.Monoid ((<>))
 import Data.String (IsString)
 import System.Random (randomRIO)
-import qualified Data.Sequence as Seq
 import Data.IORef (IORef, atomicModifyIORef',readIORef)
 import qualified Data.Map.Strict as M
 import Web.HttpApiData (FromHttpApiData)
@@ -42,61 +41,77 @@ newtype TraceId = TraceId Int64
     deriving (Eq, Ord, Show, FromHttpApiData)
 
 -- | Indicates that the current monad can provide a 'Tracer' and related context.
--- It assumes some form of environment
+-- It assumes some form of environment. While this exposes some mutable state, all
+-- of it is hidden away behind the `recordSpan` api.
 class Monad m => MonadTracer m where
     getTracer :: m Tracer
     currentTrace :: m TraceId
     currentSpan :: m (IORef SpanId)
     isDebug :: m Bool
 
--- | Wraps a computation & writes it to the 'Tracer''s IORef. Doesn't support parallel computations yet
+-- | Wraps a computation & writes it to the 'Tracer''s IORef. To start a new top-level span, and therefore
+-- a new trace, call this function with *spanType* == 'Nothing'. Otherwise, this will create a child span.
+--
+-- Doesn't support parallel computations yet
 recordSpan :: (MonadIO m, MonadBaseControl IO m, MonadTracer m) =>
     Maybe SpanRelationTag
     -> OpName
     -> m a
     -> m a
 recordSpan spanType opName action = do
-    tracer <- getTracer
+    Tracer {svcName=serviceName, spanBuffer} <- getTracer
     currentSpanCell <- currentSpan
-    parent <- liftIO $ readIORef currentSpanCell
-    trace <- currentTrace
+    activeSpanId <- liftIO $ readIORef currentSpanCell
+    traceId <- currentTrace
     debug <- isDebug
 
-    bracket (startSpan debug currentSpanCell tracer opName parent trace)
-            (closeSpan tracer parent currentSpanCell)
-            (const action)
-
-    where
-        startSpan debug ref (Tracer {svcName=serviceName}) opName parentId traceId = do
+    -- generates a thunk that completes once the action provided to 'recordSpan' finishes.
+    -- While this is running, there is a new "activeSpanId" that any children will use. Nested calls
+    -- generate a stack of spans.
+    let startSpan = do
             now <- liftIO getCurrentTime
             newSpanId <- fmap SpanId . liftIO $ randomRIO (0, maxBound)
-            let relType =
-                    case spanType of
-                        Just Child -> [ChildOf $ SpanContext traceId parentId]
-                        Just Follows -> [FollowsFrom $ SpanContext traceId parentId]
-                        Nothing -> []
-                sId = if isJust spanType then newSpanId else parentId
+            let loggedSpanId = resolveSpanId activeSpanId newSpanId
+                rel = newSpanRelation traceId activeSpanId
                 makeSpan ts =
                     Span {
                         operationName = opName,
-                        context = SpanContext traceId sId,
+                        context = SpanContext traceId loggedSpanId,
                         timestamp = utcTimeToPOSIXSeconds now,
-                        relations = relType,
+                        relations = rel,
                         tags = M.empty, -- TODO Allow adding these
                         baggage = M.empty, -- TODO Allow adding these
                         duration = diffUTCTime ts now,
                         debug,
                         serviceName
                         }
-            liftIO $ atomicModifyIORef' ref (const (newSpanId, ()))
+            liftIO $ atomicModifyIORef' currentSpanCell (const (newSpanId, ()))
             pure $ ActiveSpan makeSpan
 
-        closeSpan (Tracer {spanBuffer}) prevSpanId ref (ActiveSpan finishSpan) = do
+
+        closeSpan (ActiveSpan finishSpan) = do
             now <- liftIO getCurrentTime
             let span = finishSpan now
                 sid = spanId (context span :: SpanContext)
-            liftIO $ atomicModifyIORef' spanBuffer (\xs -> (span Seq.<| xs, ()))
-            liftIO $ atomicModifyIORef' ref (const (prevSpanId, ()))
+            liftIO $ atomicModifyIORef' spanBuffer (\xs -> (span:xs, ()))
+            liftIO $ atomicModifyIORef' currentSpanCell (const (activeSpanId, ()))
+
+    bracket startSpan
+            closeSpan
+            (const action)
+
+    where
+        -- When this is a top level span, there should be no SpanRelationTag. These two functions work
+        -- together to ensure the spans nest properly
+        resolveSpanId activeSpanId newSpanId =
+            if isJust spanType
+            then newSpanId
+            else activeSpanId
+        newSpanRelation traceId activeSpanId =
+            case spanType of
+                Just Child -> [ChildOf $ SpanContext traceId activeSpanId]
+                Just Follows -> [FollowsFrom $ SpanContext traceId activeSpanId]
+                Nothing -> []
 
 -- | Instructions that are specific to a single trace
 data TracingInstructions =
@@ -114,7 +129,7 @@ newtype ActiveSpan =
 -- | Global context required for tracing
 data Tracer =
     Tracer {
-        spanBuffer :: IORef (Seq.Seq Span),
+        spanBuffer :: IORef [Span],
         svcName :: T.Text
     }
 

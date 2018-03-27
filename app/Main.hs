@@ -4,7 +4,7 @@ module Main where
 import Servant.Tracing ( getInstructions, WithTracing)
 import Tracing.Core (recordSpan,TracingInstructions(..), SpanRelationTag(..), Tracer(..), MonadTracer(..), SpanId(..),
     TraceId(..), debugPrintSpan)
-import Tracing.Jaeger (publishJaeger)
+import Tracing.Zipkin (publishZipkin)
 
 import Control.Concurrent (threadDelay, forkIO)
 import Control.Monad (forever, mapM_)
@@ -16,7 +16,6 @@ import Data.Maybe (maybe)
 import Data.Proxy (Proxy(..))
 import Data.Foldable (toList)
 import Data.ByteString.Char8 as BS
-import qualified Data.Sequence as Seq
 import Servant
 import Servant.Server
 import System.Environment (lookupEnv, getEnv)
@@ -31,7 +30,7 @@ main = do
     destinationPath <- getEnv "TRACING_ENDPOINT"
     svcName <- T.pack <$> getEnv "TRACING_SERVICE"
     httpManager <- newManager defaultManagerSettings
-    cell <- newIORef Seq.empty
+    cell <- newIORef []
     let tracer = Tracer cell svcName
     forkIO $ publishLoop destinationPath httpManager tracer
     run 8080 . serve (Proxy :: Proxy ExampleAPI) $ server tracer
@@ -44,8 +43,8 @@ publishLoop ::
     -> IO ()
 publishLoop destination manager (Tracer {spanBuffer}) = forever $ do
     threadDelay 5000000
-    buffer <- atomicModifyIORef' spanBuffer (\b -> (Seq.empty, b))
-    mResp <- publishJaeger destination manager $ toList buffer
+    buffer <- atomicModifyIORef' spanBuffer (\b -> ([], b))
+    mResp <- publishZipkin destination manager $ toList buffer
     case mResp of
         Nothing -> pure ()
         Just resp -> do

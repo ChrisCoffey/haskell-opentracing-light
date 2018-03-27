@@ -1,11 +1,11 @@
 {-# LANGUAGE NamedFieldPuns, OverloadedStrings #-}
 
-module Jaeger.ClientSpec (
-    jaegerProps,
-    jaegerSpec
+module Zipkin.ClientSpec (
+    zipkinProps,
+    zipkinSpec
     ) where
 
-import Tracing.Jaeger
+import Tracing.Zipkin
 import Tracing.Core
 import Instances()
 
@@ -20,8 +20,8 @@ import Test.Tasty.HUnit (testCase)
 import Test.Tasty.QuickCheck (testProperty)
 import Web.HttpApiData (parseUrlPiece)
 
-jaegerProps :: TestTree
-jaegerProps = testGroup "Jaeger Props" $  [
+zipkinProps :: TestTree
+zipkinProps = testGroup "ZipkinProps" $  [
       testProperty "traceId always at least 16 chars long" $
         \s -> maybe False ((<=) 16 . T.length) . parseMaybe ( withObject "" ( .: "traceId") ) $ toJSON (ZipkinSpan (s :: Span))
     ,  testProperty "traceId never longer than 32 chars" $
@@ -31,8 +31,8 @@ jaegerProps = testGroup "Jaeger Props" $  [
     ]
 
 
-jaegerSpec :: TestTree
-jaegerSpec = testGroup "Jaeger Spec" $ [
+zipkinSpec :: TestTree
+zipkinSpec = testGroup "Zipkin Spec" $ [
     testCase "timestamp is in microseconds" $ do
         s <- generate arbitrary
         let fromMicros = maybe 0 (/ 1000000) . parseMaybe ( withObject "" (.: "timestamp") ) $ toJSON (ZipkinSpan (s :: Span))

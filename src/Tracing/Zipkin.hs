@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Tracing.Jaeger (
-    publishJaeger,
+module Tracing.Zipkin (
+    publishZipkin,
     ZipkinSpan(..)
     ) where
 
@@ -23,20 +23,21 @@ import qualified Data.HashMap.Strict as HM
 import Network.HTTP.Client
 
 
--- | Forces a dependency on `Req`
-publishJaeger :: MonadIO m =>
-    String
+-- | Publish 'Span' in the Zipkin format (TODO add link to zipkin spec here). No call is made
+-- on an empty
+publishZipkin :: MonadIO m =>
+    String -- The address of the backend server
     -> Manager
-    -> [Span]
+    -> [Span] -- ^ The traced spans to send to a Zipkin backend
     -> m (Maybe (Response T.Text))
-publishJaeger _ _ [] = pure Nothing
-publishJaeger destination manager spans =
-    liftIO . fmap (Just . fmap decode) $ httpLbs jaegerReq manager
+publishZipkin _ _ [] = pure Nothing
+publishZipkin destination manager spans =
+    liftIO . fmap (Just . fmap decode) $ httpLbs zipkinReq manager
     where
         decode = T.decodeUtf8 . LBS.toStrict
         req = parseRequest_ destination
         body = RequestBodyLBS . encode $ ZipkinSpan <$> spans
-        jaegerReq = req { method = "POST", requestBody = body, requestHeaders = [("content-type", "application/json")]}
+        zipkinReq = req { method = "POST", requestBody = body, requestHeaders = [("content-type", "application/json")]}
 
 newtype ZipkinSpan = ZipkinSpan Span
 instance ToJSON ZipkinSpan where

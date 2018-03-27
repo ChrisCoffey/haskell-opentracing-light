@@ -51,6 +51,9 @@ instance Arbitrary T.Text where
     arbitrary =
         T.pack <$> listOf (suchThat arbitrary isAscii)
 
+instance Arbitrary SpanRelationTag where
+    arbitrary = elements [Child, Follows]
+
 -- TODO add tags and baggage once they're supported
 instance Arbitrary Span where
     arbitrary = do
