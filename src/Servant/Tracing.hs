@@ -7,7 +7,7 @@ module Servant.Tracing (
     getInstructions
     ) where
 
-import Tracing.Core (TraceId(..), SpanId(..), MonadTracer, TracingInstructions(..))
+import Tracing.Core (Tracer, TraceId(..), SpanId(..), MonadTracer, TracingInstructions(..))
 
 import Control.Monad.Trans (liftIO, MonadIO)
 import qualified Data.Text as T
@@ -67,8 +67,8 @@ instance FromHttpApiData TracingInstructions where
             debugFlag :: Int -> Bool
             debugFlag = (`testBit` 1)
 
--- TODO write a monad that wraps servant & determines if it should sample or not. Takes a sampling determinant. Only evaluates if the header is not present
 
+-- TODO write a monad that wraps servant & determines if it should sample or not. Takes a sampling determinant. Only evaluates if the header is not present
 getInstructions :: MonadIO m =>
     Bool
     -> Maybe TracingInstructions

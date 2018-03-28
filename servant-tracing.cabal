@@ -82,8 +82,6 @@ executable servant-tracing-example
     , warp
     , async
     , http-client
-  other-modules:
-      Paths_servant_tracing
   default-language: Haskell2010
 
 test-suite servant-tracing-test

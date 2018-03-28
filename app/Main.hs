@@ -72,7 +72,7 @@ type MyAPI =
 --
 -- Server logic
 --
-server :: Tracer -> Server ExampleAPI
+server :: Tracer -> Server (WithTracing :> MyAPI)
 server tracer inst auth =
     runFast
     :<|>
