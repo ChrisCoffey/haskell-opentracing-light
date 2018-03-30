@@ -89,15 +89,15 @@ server tracer inst auth =
         runFast = do
             ctx <- loadCtx
             runStack ctx $
-                recordSpan (const Child <$> inst) "Run Fast" . liftIO $
+                recordSpan (const Child <$> inst) [] "Run Fast" . liftIO $
                     threadDelay 1000000 *> pure 42
         runSlow = do
             ctx <- loadCtx
             runStack ctx $
-                recordSpan (const Child <$> inst) "Run Slow" $ do
+                recordSpan (const Child <$> inst) [] "Run Slow" $ do
                     liftIO $ threadDelay 500000
                     let action = liftIO $ threadDelay 1500000 *> pure "Boo"
-                    recordSpan (Just Child) "Slow Child" action
+                    recordSpan (Just Child) [] "Slow Child" action
 
 runStack :: Ctx -> ReaderT Ctx Handler a -> Handler a
 runStack ctx action = runReaderT action ctx

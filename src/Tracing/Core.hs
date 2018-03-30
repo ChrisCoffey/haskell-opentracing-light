@@ -1,3 +1,5 @@
+{-# LANGUAGE ExistentialQuantification, RankNTypes #-}
+
 module Tracing.Core (
     Span(..),
     SpanRelation(..),
@@ -10,11 +12,13 @@ module Tracing.Core (
     Tracer(..),
     TracingInstructions(..),
     MonadTracer(..),
+    ToSpanTag(..),
 
     recordSpan,
     debugPrintSpan
     ) where
 
+import Control.Arrow ((&&&))
 import Control.Exception.Lifted (bracket)
 import Control.Monad.Trans (liftIO, MonadIO)
 import Control.Monad.Trans.Control (MonadBaseControl)
@@ -55,10 +59,11 @@ class Monad m => MonadTracer m where
 -- Doesn't support parallel computations yet
 recordSpan :: (MonadIO m, MonadBaseControl IO m, MonadTracer m) =>
     Maybe SpanRelationTag
+    -> [Tag]
     -> OpName
     -> m a
     -> m a
-recordSpan spanType opName action = do
+recordSpan spanType tags opName action = do
     Tracer {svcName=serviceName, spanBuffer} <- getTracer
     currentSpanCell <- currentSpan
     activeSpanId <- liftIO $ readIORef currentSpanCell
@@ -79,7 +84,7 @@ recordSpan spanType opName action = do
                         context = SpanContext traceId loggedSpanId,
                         timestamp = utcTimeToPOSIXSeconds now,
                         relations = rel,
-                        tags = M.empty, -- TODO Allow adding these
+                        tags = M.fromList $ (\(Tag key t) -> (key, toSpanTag t) ) <$> tags,
                         baggage = M.empty, -- TODO Allow adding these
                         duration = diffUTCTime ts now,
                         debug,
@@ -174,4 +179,13 @@ data SpanTag
     = TagString !Text
     | TagBool !Bool
     | TagInt !Int64
+    | TagDouble !Double
     deriving (Eq, Show)
+
+data Tag = forall a. ToSpanTag a => Tag T.Text a
+
+class ToSpanTag a where
+    toSpanTag :: a -> SpanTag
+
+instance ToSpanTag SpanTag where
+    toSpanTag = id
