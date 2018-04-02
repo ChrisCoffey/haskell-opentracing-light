@@ -23,10 +23,10 @@ import qualified Data.HashMap.Strict as HM
 import Network.HTTP.Client
 
 
--- | Publish 'Span' in the Zipkin format (TODO add link to zipkin spec here). No call is made
+-- | Publish 'Span' in the Zipkin format (https://zipkin.io/pages/data_model.html). No call is made
 -- on an empty
 publishZipkin :: MonadIO m =>
-    String -- The address of the backend server
+    String -- ^ The address of the backend server
     -> Manager
     -> [Span] -- ^ The traced spans to send to a Zipkin backend
     -> m (Maybe (Response T.Text))

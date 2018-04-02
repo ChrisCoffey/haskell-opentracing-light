@@ -31,7 +31,7 @@ coreSpec :: TestTree
 coreSpec = testGroup "Tracing Core Specification" $ [
     testCase "logged span id == fresh id for top level span" $ do
         ctx <- newContext
-        flip runReaderT ctx . recordSpan Nothing "Top Level Test" $ pure (7 + 8)
+        flip runReaderT ctx . recordSpan Nothing [] "Top Level Test" $ pure (7 + 8)
         traces <- readIORef . spanBuffer $ tracer ctx
         let h = head traces
         length traces @=? 1
@@ -39,7 +39,7 @@ coreSpec = testGroup "Tracing Core Specification" $ [
         (sid $ context h) @=? SpanId 1234
     , testCase "logged span id == new id for child span" $ do
         ctx <- newContext
-        flip runReaderT ctx . recordSpan (Just Child) "Child Test" $ pure (7 + 8)
+        flip runReaderT ctx . recordSpan (Just Child) [] "Child Test" $ pure (7 + 8)
         traces <- readIORef . spanBuffer $ tracer ctx
         let h = head traces
         length traces @=? 1
@@ -47,53 +47,53 @@ coreSpec = testGroup "Tracing Core Specification" $ [
         ((sid $ context h) /= SpanId 1234)  @? "Parent Id is still the child span's Id"
     , testCase "logged span id == new id for successor span" $ do
         ctx <- newContext
-        flip runReaderT ctx . recordSpan (Just Follows) "Successor Test" $ pure (7 + 8)
+        flip runReaderT ctx . recordSpan (Just Follows) [] "Successor Test" $ pure (7 + 8)
         traces <- readIORef . spanBuffer $ tracer ctx
         let h = head traces
         length traces @=? 1
         ((sid $ context h) /= SpanId 1234)  @? "Parent Id is still the successor span's Id"
     , testCase "child span sets parent relation" $ do
         ctx <- newContext
-        flip runReaderT ctx . recordSpan (Just Child) "Foo" $ pure (7 + 8)
+        flip runReaderT ctx . recordSpan (Just Child) [] "Foo" $ pure (7 + 8)
         traces <- readIORef . spanBuffer $ tracer ctx
         let h = head traces
         length traces @=? 1
         ((\(ChildOf s) -> sid s ) . head $ relations h) @=?  SpanId 1234
     , testCase "successor span sets precursor relation" $ do
         ctx <- newContext
-        flip runReaderT ctx . recordSpan (Just Follows) "Foo" $ pure (7 + 8)
+        flip runReaderT ctx . recordSpan (Just Follows) [] "Foo" $ pure (7 + 8)
         traces <- readIORef . spanBuffer $ tracer ctx
         let h = head traces
         ((\(FollowsFrom s) -> sid s ) . head $ relations h) @=?  SpanId 1234
     , testCase "sibling spans share same parent" $ do
         ctx <- newContext
-        flip runReaderT ctx . recordSpan (Just Child) "Foo" $ pure (7 + 8)
-        flip runReaderT ctx . recordSpan (Just Child) "Foo" $ pure (7 + 8)
+        flip runReaderT ctx . recordSpan (Just Child) [] "Foo" $ pure (7 + 8)
+        flip runReaderT ctx . recordSpan (Just Child) [] "Foo" $ pure (7 + 8)
         [x,y] <- readIORef . spanBuffer $ tracer ctx
         (parentId x == parentId y) @? "Sibling spans must share a parent"
     , testCase "sibling successor spans share same parent" $ do
         ctx <- newContext
-        flip runReaderT ctx . recordSpan (Just Follows) "Foo" $ pure (7 + 8)
-        flip runReaderT ctx . recordSpan (Just Follows) "Foo" $ pure (7 + 8)
+        flip runReaderT ctx . recordSpan (Just Follows) [] "Foo" $ pure (7 + 8)
+        flip runReaderT ctx . recordSpan (Just Follows) [] "Foo" $ pure (7 + 8)
         [x,y] <- readIORef . spanBuffer $ tracer ctx
         (parentId x == parentId y) @? "Sibling spans must share a parent"
     , testCase "sibling heterogeneous spans share same parent" $ do
         ctx <- newContext
-        flip runReaderT ctx . recordSpan (Just Follows) "Foo" $ pure (7 + 8)
-        flip runReaderT ctx . recordSpan (Just Child) "Foo" $ pure (7 + 8)
+        flip runReaderT ctx . recordSpan (Just Follows) [] "Foo" $ pure (7 + 8)
+        flip runReaderT ctx . recordSpan (Just Child) [] "Foo" $ pure (7 + 8)
         [x,y] <- readIORef . spanBuffer $ tracer ctx
         (parentId x == parentId y) @? "Sibling spans must share a parent"
     , testCase "sibling spans have distinct ids" $ do
         ctx <- newContext
-        flip runReaderT ctx . recordSpan (Just Follows) "Foo" $ pure (7 + 8)
-        flip runReaderT ctx . recordSpan (Just Child) "Foo" $ pure (7 + 8)
+        flip runReaderT ctx . recordSpan (Just Follows) [] "Foo" $ pure (7 + 8)
+        flip runReaderT ctx . recordSpan (Just Child) [] "Foo" $ pure (7 + 8)
         [x,y] <- readIORef . spanBuffer $ tracer ctx
         ((sid $ context x) /= (sid $ context y)) @? "Sibling spans must have different ids"
    {- , testCase "nested calls chain" $ do
         ctx <- newContext
-        flip runReaderT ctx . recordSpan Nothing "Foo" $
-            recordSpan (Just Child) "Bar" $
-            recordSpan (Just Child) "Baz"
+        flip runReaderT ctx . recordSpan Nothing [] "Foo" $
+            recordSpan (Just Child) [] "Bar" $
+            recordSpan (Just Child) [] "Baz"
         -- This test will break if 'recordSpan' changes significantly
         [x, y, z] <- readIORef . spanBuffer $ tracer ctx
         let pid =

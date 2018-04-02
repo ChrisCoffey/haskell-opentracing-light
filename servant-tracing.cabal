@@ -1,18 +1,12 @@
--- This file has been generated from package.yaml by hpack version 0.20.0.
---
--- see: https://github.com/sol/hpack
---
--- hash: 3532c2abfe55467687103a6ade65a3b0615d8af6d2679539049fb5c17391cb16
-
 name:           servant-tracing
-version:        0.1.0.0
+version:        0.1.0.1
 description:    Please see the README on Github at <https://github.com/ChrisCoffey/servant-tracing#readme>
 homepage:       https://github.com/ChrisCoffey/servant-tracing#readme
 bug-reports:    https://github.com/ChrisCoffey/servant-tracing/issues
-author:         Author name here
-maintainer:     example@example.com
-copyright:      2018 Author name here
-license:        BSD3
+author:         Chris Coffey
+maintainer:     chris@foldl.io
+copyright:      2018 Chris Coffey
+license:        MIT
 license-file:   LICENSE
 build-type:     Simple
 cabal-version:  >= 1.10

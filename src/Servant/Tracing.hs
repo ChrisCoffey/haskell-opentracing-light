@@ -28,6 +28,7 @@ type WithTracing = Header "uber-trace-id" TracingInstructions
 
 
 -- | Jaeger format: http://jaeger.readthedocs.io/en/latest/client_libraries/#propagation-format
+-- This allows the trace backend to reassemble downstream traces.
 instructionsToHeader :: TracingInstructions -> T.Text
 instructionsToHeader TracingInstructions {traceId=(TraceId tid), spanId=SpanId sid, parentSpanId=SpanId pid, sample, debug} =
     toField tid<>":"<> toField  sid <> ":"<> toField pid <> ":" <> (T.pack $ show setFlags)
@@ -69,6 +70,10 @@ instance FromHttpApiData TracingInstructions where
 
 
 -- TODO write a monad that wraps servant & determines if it should sample or not. Takes a sampling determinant. Only evaluates if the header is not present
+
+-- | In the event that there are no 'TracingInstructions' for this call, generate new instructions.
+--
+-- This has a
 getInstructions :: MonadIO m =>
     Bool
     -> Maybe TracingInstructions
