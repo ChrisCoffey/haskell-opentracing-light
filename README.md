@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/ChrisCoffey/haskell-opentracing-light.svg?branch=master)](https://travis-ci.org/ChrisCoffey/haskell-opentracing-light)
 
-This repository is the minimum required for publishing trace data to Zipkin or Jaeger. It adheres to the [Open Tracing Standard] (https://github.com/opentracing/specification/blob/master/specification.md) but is not complete. See the documentation on Hackage for module-level details.
+This repository is the minimum required for publishing trace data to Zipkin or Jaeger. It adheres to the [Open Tracing Standard] (https://github.com/opentracing/specification) but is not complete. See the documentation on Hackage for module-level details.
 
 
 ### Using the library
@@ -24,7 +24,7 @@ The code above logs a new span to the `spanBuffer`, where it will sit until publ
 
 ### Testing Locally with the Demo App
 
-You can start up a compatible server for (Zipkin)[] or (Jaeger)[] via a standalone docker container. From there its a matter of seting the following environment variables:
+You can start up a compatible server for [Zipkin](https://zipkin.io/pages/quickstart.html) or [Jaeger](https://jaegertracing.netlify.com/docs/deployment/) via a standalone docker container. From there its a matter of seting the following environment variables:
 - *TRACING_ENDPOINT*: a `String` with the fully url to a running tracing server
 - *TRACING_SERVICE*: a `String` name for your service
 

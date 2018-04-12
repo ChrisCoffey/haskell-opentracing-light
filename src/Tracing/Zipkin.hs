@@ -23,7 +23,7 @@ import qualified Data.HashMap.Strict as HM
 import Network.HTTP.Client
 
 
--- | Publish 'Span' in the Zipkin format (https://zipkin.io/pages/data_model.html). No call is made
+-- | Publish 'Span' in the <https://zipkin.io/pages/data_model.html Zipkin format> . No call is made
 -- on an empty
 publishZipkin :: MonadIO m =>
     String -- ^ The address of the backend server

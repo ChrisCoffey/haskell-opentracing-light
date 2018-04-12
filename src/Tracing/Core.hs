@@ -138,7 +138,7 @@ data TracingInstructions =
 newtype ActiveSpan =
     ActiveSpan {finishSpan :: UTCTime -> Span}
 
--- | Global context required for tracing. The 'spanBuffer' should be manually drained by library users.
+-- | Global context required for tracing. The `spanBuffer` should be manually drained by library users.
 data Tracer =
     Tracer {
         spanBuffer :: IORef [Span],
