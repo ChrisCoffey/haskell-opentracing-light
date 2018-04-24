@@ -23,8 +23,8 @@ import qualified Data.HashMap.Strict as HM
 import Network.HTTP.Client
 
 
--- | Publish 'Span' in the <https://zipkin.io/pages/data_model.html DataDog format> . No call is made
--- on an empty
+-- | Publish 'Span' in the <https://docs.datadoghq.com/api/?lang=bash#send-traces DataDog format> . No call is made
+-- on an empty span list
 publishDataDog :: MonadIO m =>
     String -- ^ The address of the backend server
     -> Manager
@@ -46,21 +46,21 @@ instance ToJSON DataDogSpan where
         "span_id" .= (unSpan . spanId $ context span),
         "name" .=  unOp (operationName span),
         "resource" .= unOp (operationName span),
-        "start" .= (floor . toMicros $ timestamp span :: Int64),
-        "type" .= ("CLIENT"::T.Text),
-        "duration" .= (toMicros $ duration span),
+        "start" .= (floor . toNanos $ timestamp span :: Int64),
+        "type" .= ("web"::T.Text),
+        "duration" .= (toNanos $ duration span),
         "service" .= (serviceName span),
         "meta" .= (unTag <$> tags span)
         ] <>
         parentId (relations span)
         where
-            toMicros = (*) 1000000
+            toNanos = (*) 1000000000
             unOp (OpName n) = n
             unSpan (SpanId sid) = sid
             unTrace (TraceId tid) = tid
             parentId :: [SpanRelation] -> [(T.Text, Value)]
-            parentId (ChildOf ctx:_) = ["parentId" .= (unSpan $ spanId ctx)]
-            parentId (FollowsFrom ctx:_) = ["parentId" .= (unSpan $ spanId ctx)]
+            parentId (ChildOf ctx:_) = ["parent_id" .= (unSpan $ spanId ctx)]
+            parentId (FollowsFrom ctx:_) = ["parent_id" .= (unSpan $ spanId ctx)]
             parentId _ = []
             padLeft 0 txt = txt
             padLeft n txt

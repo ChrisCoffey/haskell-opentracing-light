@@ -48,6 +48,7 @@ library
   exposed-modules:
                 Tracing.Core
               , Tracing.Zipkin
+              , Tracing.DataDog
               , Servant.Tracing
   -- other-modules:
   default-language: Haskell2010
@@ -105,5 +106,6 @@ test-suite servant-tracing-test
       Servant.TracingSpec,
       Instances,
       Zipkin.ClientSpec,
+      DataDog.ClientSpec,
       Tracing.CoreSpec
   default-language: Haskell2010
