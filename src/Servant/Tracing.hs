@@ -9,6 +9,7 @@ module Servant.Tracing (
 
 import Tracing.Core (Tracer, TraceId(..), SpanId(..), MonadTracer, TracingInstructions(..))
 
+import Control.Arrow (first)
 import Control.Monad.Trans (liftIO, MonadIO)
 import qualified Data.Text as T
 import qualified Data.ByteString.Char8 as BS
@@ -30,10 +31,14 @@ type WithTracing = Header "uber-trace-id" TracingInstructions
 -- | Jaeger format: http://jaeger.readthedocs.io/en/latest/client_libraries/#propagation-format
 -- This allows the trace backend to reassemble downstream traces.
 instructionsToHeader :: TracingInstructions -> T.Text
-instructionsToHeader TracingInstructions {traceId=(TraceId tid), spanId=SpanId sid, parentSpanId=SpanId pid, sample, debug} =
-    toField tid<>":"<> toField  sid <> ":"<> toField pid <> ":" <> (T.pack $ show setFlags)
+instructionsToHeader TracingInstructions {traceId=(TraceId tid), spanId, parentSpanId, sample, debug} =
+    toField tid<>":"<>
+    (toField $ unSpanId spanId) <> ":"<>
+    (fromMaybe "" $ (toField . unSpanId) <$> parentSpanId) <> ":" <>
+    (T.pack $ show setFlags)
     where
-        toField = T.pack . BS.unpack . fromMaybe "0" . BS.packHexadecimal
+        unSpanId (SpanId sid) = sid
+        toField = T.pack . BS.unpack . fromMaybe "" . BS.packHexadecimal
         setFlags :: Int
         setFlags = (if debug then 2 else 0) .|. (if sample then 1 else 0) .|. 0
 
@@ -48,7 +53,10 @@ instance FromHttpApiData TracingInstructions where
                 res = do
                     traceId <- TraceId . fromIntegral . fst <$> hexadecimal rawTraceId
                     spanId <- SpanId . fromIntegral . fst <$> hexadecimal rawSpanId
-                    parentId <- SpanId . fromIntegral . fst <$> if T.null rawParentId then pure (0 :: Integer, "") else hexadecimal rawParentId
+                    let resolvedPid = if T.null rawParentId
+                                      then pure (Nothing, "")
+                                      else first Just <$> hexadecimal rawParentId
+                    parentId <- fmap (SpanId . fromIntegral) . fst <$> resolvedPid
                     flagField <- fromIntegral . fst <$> hexadecimal flags
                     let [sample, debug]= [sampleFlag, debugFlag] <*> [flagField]
                     pure TracingInstructions {
@@ -85,7 +93,7 @@ getInstructions debug Nothing = do
     pure TracingInstructions {
         traceId = TraceId newTraceId,
         spanId = SpanId newSpanId,
-        parentSpanId = SpanId 0,
+        parentSpanId = Nothing,
         debug,
         sample = sample == (1::Int)
         }

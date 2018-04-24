@@ -130,7 +130,7 @@ data TracingInstructions =
     TracingInstructions {
         traceId :: !TraceId,
         spanId :: !SpanId,
-        parentSpanId :: !SpanId,
+        parentSpanId :: !(Maybe SpanId),
         debug :: !Bool,
         sample :: !Bool
         } deriving (Eq, Show)

@@ -45,11 +45,16 @@ tracingSpecs = testGroup "Servant Specification" [
     testCase "4:3:4:3 == TracingInstructions 4 3 4 True True" $ let
         inst = parseUrlPiece "4:3:4:3"
         in case inst of
-            Right inst -> inst @=? (TracingInstructions (TraceId 4) (SpanId 3) (SpanId 4) True True)
+            Right inst -> inst @=? (TracingInstructions (TraceId 4) (SpanId 3) (Just $ SpanId 4) True True)
+            Left _ -> assertFailure $ "Failed: "++ show inst,
+    testCase "4:3::3 == TracingInstructions 4 3 Nothing True True" $ let
+        inst = parseUrlPiece "4:3::3"
+        in case inst of
+            Right inst -> inst @=? (TracingInstructions (TraceId 4) (SpanId 3) Nothing True True)
             Left _ -> assertFailure $ "Failed: "++ show inst
     ]
     where
-        dummyInst1 = TracingInstructions (TraceId 1) (SpanId 1) (SpanId 0) True True
+        dummyInst1 = TracingInstructions (TraceId 1) (SpanId 1) Nothing True True
         extractId = maybe (-1) fst . toMaybe . T.hexadecimal
         extractFields = maybe (-1) fst . toMaybe . T.hexadecimal . last . T.splitOn ":"
         toMaybe (Left _) = Nothing
