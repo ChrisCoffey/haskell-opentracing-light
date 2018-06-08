@@ -21,6 +21,7 @@ import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString.Lex.Integral as BS
 import qualified Data.HashMap.Strict as HM
 import Network.HTTP.Client
+import Network.HTTP.Types.Header (Header)
 
 
 -- | Publish 'Span' in the <https://docs.datadoghq.com/api/?lang=bash#send-traces DataDog format> . No call is made
@@ -28,16 +29,20 @@ import Network.HTTP.Client
 publishDataDog :: MonadIO m =>
     String -- ^ The address of the backend server
     -> Manager
+    -> [Header]
     -> [Span] -- ^ The traced spans to send to a DataDog backend
     -> m (Maybe (Response T.Text))
-publishDataDog _ _ [] = pure Nothing
-publishDataDog destination manager spans =
-    liftIO . fmap (Just . fmap decode) $ httpLbs zipkinReq manager
+publishDataDog _ _ _ [] = pure Nothing
+publishDataDog destination manager additionalHeaders spans =
+    liftIO . fmap (Just . fmap decode) $ httpLbs ddReq manager
     where
         decode = T.decodeUtf8 . LBS.toStrict
         req = parseRequest_ destination
         body = RequestBodyLBS . encode $ DataDogSpan <$> spans
-        zipkinReq = req { method = "POST", requestBody = body, requestHeaders = [("content-type", "application/json")]}
+        ddReq = req { method = "POST",
+                      requestBody = body,
+                      requestHeaders = [("content-type", "application/json")] <> additionalHeaders
+                    }
 
 newtype DataDogSpan = DataDogSpan Span
 instance ToJSON DataDogSpan where

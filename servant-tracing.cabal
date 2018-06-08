@@ -45,6 +45,7 @@ library
                 , http-api-data
                 , aeson
                 , http-client
+                , http-types
   exposed-modules:
                 Tracing.Core
               , Tracing.Zipkin
