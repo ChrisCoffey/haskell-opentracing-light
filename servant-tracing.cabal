@@ -22,7 +22,7 @@ source-repository head
 library
   default-extensions:  DataKinds FlexibleContexts ScopedTypeVariables OverloadedStrings ViewPatterns NamedFieldPuns
                        KindSignatures RecordWildCards ConstraintKinds TypeSynonymInstances FlexibleInstances
-                       DuplicateRecordFields GeneralizedNewtypeDeriving InstanceSigs TypeFamilies
+                       DuplicateRecordFields GeneralizedNewtypeDeriving InstanceSigs TypeFamilies MultiParamTypeClasses
   hs-source-dirs:
       src
   build-depends:

@@ -1,9 +1,9 @@
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableInstances, MultiParamTypeClasses #-}
 module Main where
 
 import Servant.Tracing ( getInstructions, WithTracing)
 import Tracing.Core (recordSpan,TracingInstructions(..), SpanRelationTag(..), Tracer(..), MonadTracer(..), SpanId(..),
-    TraceId(..), debugPrintSpan)
+    TraceId(..), debugPrintSpan, HasSpanId(..))
 import Tracing.Zipkin (publishZipkin)
 
 import Control.Concurrent (threadDelay, forkIO)
@@ -80,7 +80,7 @@ server tracer inst auth =
     where
         loadCtx = do
             instructions <- getInstructions True inst
-            currSpan <- liftIO $ newIORef (spanId instructions)
+            let currSpan = spanId instructions
             pure Ctx {
                 tracer,
                 currSpan,
@@ -104,12 +104,15 @@ runStack ctx action = runReaderT action ctx
 
 data Ctx = Ctx {
     tracer :: Tracer,
-    currSpan :: IORef SpanId,
+    currSpan :: SpanId,
     instructions :: TracingInstructions
     }
 
-instance (Monad m, MonadBaseControl IO m, MonadIO m, MonadReader Ctx m) => MonadTracer m where
+instance HasSpanId Ctx where
+    getSpanId = currSpan
+    setSpanId c s = c {currSpan = s }
+
+instance (Monad m, MonadBaseControl IO m, MonadIO m, MonadReader Ctx m) => MonadTracer m Ctx where
     getTracer = tracer <$> ask
     currentTrace = (traceId . instructions) <$> ask
-    currentSpan = currSpan <$> ask
     isDebug = (debug . instructions) <$> ask

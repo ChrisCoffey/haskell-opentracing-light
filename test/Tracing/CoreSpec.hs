@@ -1,4 +1,4 @@
-{-# LANGUAGE NamedFieldPuns, OverloadedStrings, UndecidableInstances, DuplicateRecordFields, FlexibleInstances #-}
+{-# LANGUAGE NamedFieldPuns, OverloadedStrings, UndecidableInstances, DuplicateRecordFields, FlexibleInstances, MultiParamTypeClasses #-}
 
 module Tracing.CoreSpec (
     coreProps,
@@ -93,10 +93,10 @@ coreSpec = testGroup "Tracing Core Specification" $ [
         ctx <- newContext
         flip runReaderT ctx . recordSpan Nothing [] "Foo" $
             recordSpan (Just Child) [] "Bar" $
-            recordSpan (Just Child) [] "Baz"
+            recordSpan (Just Child) [] "Baz" $ pure (7 + 8)
         -- This test will break if 'recordSpan' changes significantly
         [x, y, z] <- readIORef . spanBuffer $ tracer ctx
-        let pid =
+        let pid = x
         ((sid $ context x) /= (sid $ context y)) @? "Sibling spans must have different ids"
         -}
     ]
@@ -104,7 +104,7 @@ coreSpec = testGroup "Tracing Core Specification" $ [
 newContext :: IO Ctx
 newContext = do
     cell <- newIORef []
-    currSpan <- newIORef $ SpanId 1234
+    let currSpan = SpanId 1234
     pure Ctx {
         tracer = Tracer cell "UNIT TESTING",
         currSpan = currSpan,
@@ -122,13 +122,16 @@ parentId _ =  Nothing
 
 data Ctx = Ctx {
     tracer :: Tracer,
-    currSpan :: IORef SpanId,
+    currSpan :: SpanId,
     dbg :: Bool,
     currTrace :: TraceId
     }
 
-instance (Monad m, MonadBaseControl IO m, MonadIO m, MonadReader Ctx m) => MonadTracer m where
+instance HasSpanId Ctx where
+    getSpanId = currSpan
+    setSpanId c s = c {currSpan = s}
+
+instance (Monad m, MonadBaseControl IO m, MonadIO m, MonadReader Ctx m) => MonadTracer m Ctx where
     getTracer = tracer <$> ask
     currentTrace = currTrace <$> ask
-    currentSpan = currSpan <$> ask
     isDebug = dbg <$> ask

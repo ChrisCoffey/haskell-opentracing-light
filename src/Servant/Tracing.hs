@@ -1,6 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
 module Servant.Tracing (
-    ServantTracingT,
     WithTracing,
     TracingInstructions(..),
     instructionsToHeader,
@@ -24,7 +23,6 @@ import System.Random (randomRIO)
 import Web.HttpApiData (FromHttpApiData(..))
 
 -- | Constrain the 'ServerT''s base monad such that it provides an instance of 'MonadTracer'
-type ServantTracingT api m = (MonadIO m, MonadTracer m) => ServerT api m
 type WithTracing = Header "uber-trace-id" TracingInstructions
 
 

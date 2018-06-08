@@ -12,6 +12,7 @@ module Tracing.Core (
     Tracer(..),
     TracingInstructions(..),
     MonadTracer(..),
+    HasSpanId(..),
     ToSpanTag(..),
     Tag(..),
 
@@ -22,6 +23,7 @@ module Tracing.Core (
 import Control.Arrow ((&&&))
 import Control.Exception.Lifted (bracket)
 import Control.Monad.Trans (liftIO, MonadIO)
+import Control.Monad.Reader (MonadReader, ask, local)
 import Control.Monad.Trans.Control (MonadBaseControl)
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -51,20 +53,26 @@ newtype SpanId = SpanId Int64
 newtype TraceId = TraceId Int64
     deriving (Eq, Ord, Show, FromHttpApiData)
 
+class HasSpanId a where
+    getSpanId :: a -> SpanId
+    setSpanId ::  a -> SpanId -> a
+
 -- | Indicates that the current monad can provide a 'Tracer' and related context.
 -- It assumes some form of environment. While this exposes some mutable state, all
 -- of it is hidden away behind the `recordSpan` api.
-class Monad m => MonadTracer m where
+class (Monad m, HasSpanId r, MonadReader r m) => MonadTracer m r where
     getTracer :: m Tracer -- ^ 'Tracer' is global to the process
     currentTrace :: m TraceId -- ^ Set during the initial request from the outside world, this is propagated across all nodes in the call
-    currentSpan :: m (IORef SpanId) -- ^ Set via 'recordSpan'
     isDebug :: m Bool -- ^ Set during the initial request from the outside world, this is propagated across all nodes in the call
+
+    currentSpan :: m SpanId
+    currentSpan = getSpanId <$> ask
 
 -- | Wraps a computation & writes it to the 'Tracer''s IORef. To start a new top-level span, and therefore
 -- a new trace, call this function with *spanType* == 'Nothing'. Otherwise, this will create a child span.
 --
 -- Doesn't support parallel computations yet
-recordSpan :: (MonadIO m, MonadBaseControl IO m, MonadTracer m) =>
+recordSpan :: (MonadIO m, MonadBaseControl IO m, MonadTracer m r) =>
     Maybe SpanRelationTag
     -> [Tag]
     -> OpName
@@ -72,8 +80,7 @@ recordSpan :: (MonadIO m, MonadBaseControl IO m, MonadTracer m) =>
     -> m a
 recordSpan spanType tags opName action = do
     Tracer {svcName=serviceName, spanBuffer} <- getTracer
-    currentSpanCell <- currentSpan
-    activeSpanId <- liftIO $ readIORef currentSpanCell
+    activeSpanId <- currentSpan
     traceId <- currentTrace
     debug <- isDebug
 
@@ -97,21 +104,21 @@ recordSpan spanType tags opName action = do
                         debug,
                         serviceName
                         }
-            liftIO $ atomicModifyIORef' currentSpanCell (const (newSpanId, ()))
-            pure $ ActiveSpan makeSpan
+            pure $ ActiveSpan loggedSpanId makeSpan
 
 
-        closeSpan (ActiveSpan finishSpan) = do
+        closeSpan (ActiveSpan _ finishSpan) = do
             now <- liftIO getCurrentTime
             let span = finishSpan now
                 sid = spanId (context span :: SpanContext)
             liftIO $ atomicModifyIORef' spanBuffer (\xs -> (span:xs, ()))
-            liftIO $ atomicModifyIORef' currentSpanCell (const (activeSpanId, ()))
+
+        runAction (ActiveSpan spanId _) =
+            local (`setSpanId` spanId) action
 
     bracket startSpan
             closeSpan
-            (const action)
-
+            runAction
     where
         -- When this is a top level span, there should be no SpanRelationTag. These two functions work
         -- together to ensure the spans nest properly
@@ -135,8 +142,8 @@ data TracingInstructions =
         sample :: !Bool
         } deriving (Eq, Show)
 
-newtype ActiveSpan =
-    ActiveSpan {finishSpan :: UTCTime -> Span}
+data ActiveSpan =
+    ActiveSpan {asid :: SpanId, finishSpan :: UTCTime -> Span}
 
 -- | Global context required for tracing. The `spanBuffer` should be manually drained by library users.
 data Tracer =
