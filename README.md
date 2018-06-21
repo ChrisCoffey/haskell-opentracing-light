@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/ChrisCoffey/haskell-opentracing-light.svg?branch=master)](https://travis-ci.org/ChrisCoffey/haskell-opentracing-light)
 
-This repository is the minimum required for publishing trace data to Zipkin or Jaeger. It adheres to the [Open Tracing Standard] (https://github.com/opentracing/specification) but is missing a few features. See the documentation on Hackage for module-level details.
+This repository is the minimum required for publishing trace data to Zipkin or Jaeger. It adheres to the [Open Tracing Standard](https://github.com/opentracing/specification) but is missing a few features. See the documentation on Hackage for module-level details.
 
 
 ### Using the library
