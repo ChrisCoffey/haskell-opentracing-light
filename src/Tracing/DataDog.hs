@@ -18,10 +18,12 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy as LBS
+import qualified Data.ByteString.Lazy.Char8 as LBSC8
 import qualified Data.ByteString.Lex.Integral as BS
-import qualified Data.HashMap.Strict as HM
 import Network.HTTP.Client
 import Network.HTTP.Types.Header (Header)
+import Data.Aeson.Types (ToJSON(toJSON))
+import qualified Data.Map as Map
 
 
 -- | Publish 'Span' in the <https://docs.datadoghq.com/api/?lang=bash#send-traces DataDog format> . No call is made
@@ -47,7 +49,7 @@ publishDataDog destination manager additionalHeaders spans =
 newtype DataDogSpan = DataDogSpan Span
 instance ToJSON DataDogSpan where
     toJSON (DataDogSpan span) = object $ [
-        "trace_id" .= (unTrace . traceId $ context span),
+        "trace_id"  .= (unTrace . traceId $ context span),
         "span_id" .= (unSpan . spanId $ context span),
         "name" .=  unOp (operationName span),
         "resource" .= unOp (operationName span),
@@ -63,7 +65,6 @@ instance ToJSON DataDogSpan where
             unOp (OpName n) = n
             unSpan (SpanId sid) = sid
             unTrace (TraceId tid) = tid
-            parentId :: [SpanRelation] -> [(T.Text, Value)]
             parentId (ChildOf ctx:_) = ["parent_id" .= (unSpan $ spanId ctx)]
             parentId (FollowsFrom ctx:_) = ["parent_id" .= (unSpan $ spanId ctx)]
             parentId _ = []

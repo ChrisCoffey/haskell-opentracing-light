@@ -58,7 +58,6 @@ instance ToJSON ZipkinSpan where
             zipkinFormatId = padLeft 16 . T.pack . BS.unpack . fromMaybe "-1"
             unTrace (TraceId t) = zipkinFormatId $ BS.packHexadecimal t
             unSpan (SpanId s) = zipkinFormatId $ BS.packHexadecimal s
-            parentId :: [SpanRelation] -> [(T.Text, Value)]
             parentId (ChildOf ctx:_) = ["parentId" .= (unSpan $ spanId ctx)]
             parentId (FollowsFrom ctx:_) = ["parentId" .= (unSpan $ spanId ctx)]
             parentId _ = []

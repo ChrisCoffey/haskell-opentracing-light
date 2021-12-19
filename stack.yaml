@@ -1,3 +1,5 @@
-resolver: lts-11.13
+resolver: lts-18.18
+allow-newer: true
 packages:
 - .
+allow-newer: true

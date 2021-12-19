@@ -17,8 +17,7 @@ import Data.Text.Read(hexadecimal)
 import Data.Bits (testBit, (.|.))
 import Data.Maybe (catMaybes, fromMaybe)
 import Data.Monoid ((<>))
-import Servant
-import Servant.Server
+import Servant.API.Header (Header)
 import System.Random (randomRIO)
 import Web.HttpApiData (FromHttpApiData(..))
 
